@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import {
   NgxExtendedPdfViewerModule,
@@ -6,6 +6,8 @@ import {
 } from 'ngx-extended-pdf-viewer';
 import { FormsModule } from '@angular/forms';
 import { NgFor, NgIf } from '@angular/common';
+
+import { StorageService } from './storage/storage.service';
 
 interface HistoryItem {
   id: string; // simple id
@@ -19,12 +21,14 @@ interface HistoryItem {
 @Component({
   selector: 'app-root',
   imports: [RouterOutlet, NgxExtendedPdfViewerModule, FormsModule, NgIf, NgFor],
-  providers: [NgxExtendedPdfViewerService],
+  providers: [NgxExtendedPdfViewerService, StorageService],
   templateUrl: './app.component.html',
   styleUrl: './app.component.scss',
 })
 export class AppComponent {
   title = 'angular-pdf-test';
+
+  private readonly storage = inject(StorageService);
 
   pdfSrc:
     | string
@@ -118,7 +122,6 @@ export class AppComponent {
 
   // ---- History ----
   private addHistoryItem(item: HistoryItem) {
-    // push to front
     this.history = [item, ...this.history].slice(0, 20);
     this.saveHistory();
   }
@@ -150,18 +153,20 @@ export class AppComponent {
   // persistence: store only metadata and URLs by default
   private saveHistory() {
     try {
-      localStorage.setItem('pdfPickerHistory', JSON.stringify(this.history));
+      this.storage.setItem('pdfPickerHistory', JSON.stringify(this.history));
     } catch (err) {
       console.warn('Could not save history', err);
     }
   }
 
   private loadHistory() {
+    // load history via StorageService (handles SSR fallback)
     try {
-      const raw = localStorage.getItem('pdfPickerHistory');
+      const raw = this.storage.getItem('pdfPickerHistory');
       if (raw) this.history = JSON.parse(raw) as HistoryItem[];
     } catch (err) {
-      console.warn('Could not load history', err);
+      console.warn('Could not parse history', err);
+      this.history = [];
     }
   }
 
